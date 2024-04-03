@@ -1,0 +1,5 @@
+# Setting up an AWS Node project
+
+1. Include the AWS dependencies
++
+`npm install aws-sdk`

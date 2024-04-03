@@ -10,10 +10,13 @@
     "type": "git",
     "url": "git+https://github.com/mark-secrist/aws-nodejs-samples.git"
   },
-  "author": "",
+  "author": "Mark Secrist",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/mark-secrist/aws-nodejs-samples/issues"
   },
-  "homepage": "https://github.com/mark-secrist/aws-nodejs-samples#readme"
+  "homepage": "https://github.com/mark-secrist/aws-nodejs-samples#readme",
+  "dependencies": {
+    "aws-sdk": "^2.1591.0"
+  }
 }
