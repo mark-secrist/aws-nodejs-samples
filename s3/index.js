@@ -15,8 +15,9 @@ import {
     ListObjectsV2Command,
     CreateBucketCommand,
     DeleteBucketCommand,
-    PutObjectCommand,
+    DeleteObjectsCommand,
     DeleteObjectCommand,
+    PutObjectCommand,
     paginateListObjectsV2,
     GetObjectCommand,
 } from "@aws-sdk/client-s3";
@@ -154,6 +155,9 @@ async function createBucket(s3client, bucketName) {
  * @param {string} bucketName The name of the bucket to create
  */
 async function deleteBucket(s3client, bucketName) {
+    // Clear out bucket contents before deleting bucket
+    await clearBucketContents(s3client, bucketName);
+
     const command = new DeleteBucketCommand({
         Bucket: bucketName,
     });
@@ -163,6 +167,34 @@ async function deleteBucket(s3client, bucketName) {
     try {
         await s3client.send(command);
         console.log(`Bucket deleted`)
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+/**
+ * Delete all objects in the specified bucket.
+ * 
+ * Use the S3Client to delete all objects in the specified bucket.
+ * This is typically used as a precursor to deleting the bucket itself.
+ * 
+ * @param {S3Client} s3client The initialized S3 client reference
+ * @param {string} bucketName The name of the bucket to create
+ */
+async function clearBucketContents(s3client, bucketName) {
+    const command = new ListObjectsV2Command({
+        Bucket: bucketName,
+    });
+
+    try {
+        const { Contents } = await s3client.send(command);
+        // Delete all the objects obtained from the prior ListObjects command
+        const deleteObjectsCommand = new DeleteObjectsCommand({
+            Bucket: bucketName,
+            Delete: { Objects: Contents.map((o) => ({ Key: o.Key })) }
+        });
+        await s3client.send(deleteObjectsCommand);
+
     } catch (err) {
         console.error(err);
     }
