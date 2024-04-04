@@ -24,6 +24,7 @@ import {
 import { loadSharedConfigFiles } from '@aws-sdk/shared-ini-file-loader';
 import pkg from '@aws-sdk/credential-providers';
 import jp from 'jsonpath';
+import { readFileSync} from "fs";
 
 const { fromIni } = pkg;
 
@@ -57,6 +58,14 @@ async function main() {
     await listBucketContents(client, "home.dev2cloud.link");
     await createBucket(client, newBucket);
     await listBuckets(client);
+    
+    const sourceFileName = "notes.csv";
+    const sourceContentType= "text/csv";
+    await uploadFile(client, newBucket, sourceFileName, sourceContentType,  { "myVal": "Upload Testing"} );
+    await listBucketContents(client, newBucket);
+    
+    // const url = await createPresignedUrl(client, newBucket, sourceFileName);
+    // console.log(url);
     await deleteBucket(client, newBucket);
 
 }
@@ -179,7 +188,7 @@ async function deleteBucket(s3client, bucketName) {
  * This is typically used as a precursor to deleting the bucket itself.
  * 
  * @param {S3Client} s3client The initialized S3 client reference
- * @param {string} bucketName The name of the bucket to create
+ * @param {string} bucketName The name of the bucket to clear contents for
  */
 async function clearBucketContents(s3client, bucketName) {
     const command = new ListObjectsV2Command({
@@ -195,6 +204,36 @@ async function clearBucketContents(s3client, bucketName) {
         });
         await s3client.send(deleteObjectsCommand);
 
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+/**
+ * Upload the specified file to the specified bucket.
+ * 
+ * Uses the S3 client to upload the file to the specified bucket.
+ * This approach will use a local file and will read the contents and send
+ * that as the body of the object being uploaded.
+ * 
+ * @param {S3Client} s3client The initialized S3 client reference
+ * @param {string} bucketName The name of the bucket to upload to
+ * @param {string} fileName The name of the source file (which will also be the key in S3)
+ * @param {string} contentType the content type of the file being uploaded
+ * @param {object} metadata Metadata to associate with the object
+ */
+async function uploadFile(s3client, bucketName, fileName, contentType, metadata) {
+    const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: fileName,
+        Body: readFileSync(fileName),
+        ContentType: contentType,
+        Metadata: metadata
+    });
+
+    try {
+        const { Location } =  await s3client.send(command);
+        console.log(`File uploaded at: ${Location}`)
     } catch (err) {
         console.error(err);
     }
