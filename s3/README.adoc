@@ -1,5 +1,16 @@
 # Setting up an AWS Node project
 
 1. Include the AWS dependencies
+
+* Install the S3 SDK
 +
-`npm install aws-sdk`
+`npm install @aws-sdk/client-s3`
+* Install the credentials loader - 
++
+`npm install @aws-sdk/credential-providers`
+* Install the ini file loader 
++
+`npm install @aws-sdk/shared-ini-file-loader`
+* Install jsonpath - 
++
+`npm install jsonpath`
