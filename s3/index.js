@@ -8,6 +8,9 @@
  * The requester is then responsible for handling the response, which will vary depending
  * on the request being sent.
  *
+ * Note: Much of the code for these examples was generated initially by Code Whisperer and
+ * cleaned up and documented by me.
+ *
  */
 import {
     S3Client,
@@ -16,13 +19,12 @@ import {
     CreateBucketCommand,
     DeleteBucketCommand,
     DeleteObjectsCommand,
-    DeleteObjectCommand,
     PutObjectCommand,
-    paginateListObjectsV2,
     GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import { loadSharedConfigFiles } from '@aws-sdk/shared-ini-file-loader';
 import pkg from '@aws-sdk/credential-providers';
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import jp from 'jsonpath';
 import { readFileSync} from "fs";
 
@@ -64,8 +66,8 @@ async function main() {
     await uploadFile(client, newBucket, sourceFileName, sourceContentType,  { "myVal": "Upload Testing"} );
     await listBucketContents(client, newBucket);
     
-    // const url = await createPresignedUrl(client, newBucket, sourceFileName);
-    // console.log(url);
+    const url = await createPresignedUrl(client, newBucket, sourceFileName);
+    console.log(`Presigned URL is: ${url}`);
     await deleteBucket(client, newBucket);
 
 }
@@ -238,6 +240,31 @@ async function uploadFile(s3client, bucketName, fileName, contentType, metadata)
         console.error(err);
     }
 }
+
+/**
+ * Generate a presigned URL for the specified object.
+ * 
+ * Use the S3Client and the helper method `getSignedUrl` to produce a temporary
+ * presigned URL.
+ * 
+ * @param {S3Client} s3client The initialized S3 client reference
+ * @param {string} bucketName The name of the bucket where the object resides
+ * @param {string} objectKey The key to the object to generate the URL for
+ * @returns 
+ */
+async function createPresignedUrl(s3client, bucketName, objectKey) {
+    const command = new GetObjectCommand({
+        Bucket: bucketName,
+        Key: objectKey
+    });
+
+    try {
+        return getSignedUrl(s3client, command, { expiresIn: 3600 }  );
+    } catch (err) {
+        console.error(err);
+    }
+}
+
 
 main()
     .then(() => process.exit(0))

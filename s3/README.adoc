@@ -8,6 +8,9 @@
 * Install the credentials loader - 
 +
 `npm install @aws-sdk/credential-providers`
+* Install the S3 request presigner -
++
+`npm install @aws-sdk/s3-request-presigner`
 * Install the ini file loader 
 +
 `npm install @aws-sdk/shared-ini-file-loader`
