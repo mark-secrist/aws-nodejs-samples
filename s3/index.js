@@ -66,7 +66,8 @@ async function main() {
     await uploadFile(client, newBucket, sourceFileName, sourceContentType,  { "myVal": "Upload Testing"} );
     await listBucketContents(client, newBucket);
     
-    const url = await createPresignedUrl(client, newBucket, sourceFileName);
+    // Generate a presigned URL good for an hour (60 seconds * 60 minutes)
+    const url = await createPresignedUrl(client, newBucket, sourceFileName, 3600);
     console.log(`Presigned URL is: ${url}`);
     await deleteBucket(client, newBucket);
 
@@ -90,6 +91,7 @@ async function listBuckets(s3client) {
         // Note additional data can be returned, such as the Owner.
         //const { Owner, Buckets } = await s3client.send(command);
         const { Buckets } = await s3client.send(command);
+        // Log with additional information like the owner
         //console.log(
         //    `${Owner.DisplayName} owns ${Buckets.length} bucket${Buckets.length === 1 ? "" : "s"
         //    }:`,
@@ -250,16 +252,17 @@ async function uploadFile(s3client, bucketName, fileName, contentType, metadata)
  * @param {S3Client} s3client The initialized S3 client reference
  * @param {string} bucketName The name of the bucket where the object resides
  * @param {string} objectKey The key to the object to generate the URL for
- * @returns 
+ * @param {number} duration The duration of the presigned URL in seconds
+ * @returns The URL, encoded (presigned)
  */
-async function createPresignedUrl(s3client, bucketName, objectKey) {
+async function createPresignedUrl(s3client, bucketName, objectKey, duration) {
     const command = new GetObjectCommand({
         Bucket: bucketName,
         Key: objectKey
     });
 
     try {
-        return getSignedUrl(s3client, command, { expiresIn: 3600 }  );
+        return getSignedUrl(s3client, command, { expiresIn: duration }  );
     } catch (err) {
         console.error(err);
     }
