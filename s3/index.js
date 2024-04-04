@@ -1,20 +1,28 @@
 /**
  * Should be using Node version 16+ for V3 version of AWS SDK
+ * These examples demonstrate the various use cases for managing S3 buckets and
+ * objects. 
+ * The S3 client primarily uses the command pattern to perform the various tasks, 
+ * which means that the client is responsible for creating the command and then
+ * sending it to the service.
+ * The requester is then responsible for handling the response, which will vary depending
+ * on the request being sent.
+ *
  */
 import {
     S3Client,
     ListBucketsCommand,
     ListObjectsV2Command,
-    PutObjectCommand,
     CreateBucketCommand,
-    DeleteObjectCommand,
     DeleteBucketCommand,
+    PutObjectCommand,
+    DeleteObjectCommand,
     paginateListObjectsV2,
     GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import { loadSharedConfigFiles } from '@aws-sdk/shared-ini-file-loader';
 import pkg from '@aws-sdk/credential-providers';
-import jp  from 'jsonpath';
+import jp from 'jsonpath';
 
 const { fromIni } = pkg;
 
@@ -32,9 +40,9 @@ async function main() {
     const config = await loadSharedConfigFiles();
     const queryString = `$.configFile['${profile}'].region`;
     const region = jp.query(config, queryString)[0];
-    
+
     // Creates an  AwsCredentialsIdentityProvider instance to use with the configuration of the client
-    const credentials =  fromIni({ profile: profile });
+    const credentials = fromIni({ profile: profile });
     const client = new S3Client({
         region: region,
         profile: profile,
@@ -44,7 +52,11 @@ async function main() {
     // Call S3 to list the buckets
     await listBuckets(client);
     // This works because the specified bucket is found in the region configured in the client
+    const newBucket = "mark-test-123459876123";
     await listBucketContents(client, "home.dev2cloud.link");
+    await createBucket(client, newBucket);
+    await listBuckets(client);
+    await deleteBucket(client, newBucket);
 
 }
 
@@ -70,6 +82,7 @@ async function listBuckets(s3client) {
         //    `${Owner.DisplayName} owns ${Buckets.length} bucket${Buckets.length === 1 ? "" : "s"
         //    }:`,
         //);
+        console.log("\nList of buckets:");
         console.log(`${Buckets.map((b) => ` • ${b.Name}`).join("\n")}`);
     } catch (err) {
         console.error(err);
@@ -98,6 +111,58 @@ async function listBucketContents(s3client, bucketName) {
             `${Contents.map((o) => ` • ${o.Key}`).join("\n")}`
         );
 
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+/**
+ * Create the specified bucket.
+ * 
+ * Use the S3Client to create the specified bucket using the default region associated
+ * when the S3Client was created.
+ * 
+ * @param {S3Client} s3client The initialized S3 client reference
+ * @param {string} bucketName The name of the bucket to create
+ */
+async function createBucket(s3client, bucketName) {
+    const command = new CreateBucketCommand({
+        Bucket: bucketName,
+    });
+    console.log("\n");
+    console.log(`Creating bucket: ${bucketName}`);
+
+    try {
+        const { Location } =  await s3client.send(command);
+        console.log(`Bucket created at: ${Location}`)
+    } catch (err) {
+        if (err.name === 'BucketAlreadyOwnedByYou' || err.name === 'BucketAlreadyExists') {
+            console.log('Bucket already exists');
+        }
+        else {
+            console.error(err);
+        }
+    }
+}
+
+/**
+ * Delete the specified bucket.
+ * 
+ * Use the S3Client to delete the specified bucket.
+ * 
+ * @param {S3Client} s3client The initialized S3 client reference
+ * @param {string} bucketName The name of the bucket to create
+ */
+async function deleteBucket(s3client, bucketName) {
+    const command = new DeleteBucketCommand({
+        Bucket: bucketName,
+    });
+    console.log("\n");
+    console.log(`Deleting bucket: ${bucketName}`);
+
+    try {
+        await s3client.send(command);
+        console.log(`Bucket deleted`)
     } catch (err) {
         console.error(err);
     }
