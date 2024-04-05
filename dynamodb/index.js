@@ -36,7 +36,6 @@ async function main() {
         region: region,
         credentials: credentials,
         profile: profile,
-        logger: logger
     });
 
     const jsonFileName = "notes.json"
@@ -79,6 +78,9 @@ async function main() {
     }
     await testPartiQL(client);
     */
+
+    console.log("Deleting table");
+    await deleteTable(client, tableName);
 }
 
 /**
@@ -279,6 +281,15 @@ async function testPartiQL(client) {
     const response = await client.send(command);
     console.log(`Response: ${JSON.stringify(response)}`);
 
+}
+
+async function deleteTable(client, tableName) {
+    const params = {
+        TableName: tableName
+    };
+
+    const command = new DeleteTableCommand(params);
+    await client.send(command);
 }
 
 main()
