@@ -1,0 +1,27 @@
+{
+  "name": "dynamodb",
+  "version": "1.0.0",
+  "description": "Sample DynamoDB project using Node.js",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark-secrist/aws-nodejs-samples.git"
+  },
+  "author": "Mark Secrist <mark.secrist@dev2cloud.online>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mark-secrist/aws-nodejs-samples/issues"
+  },
+  "homepage": "https://github.com/mark-secrist/aws-nodejs-samples#readme",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.549.0",
+    "@aws-sdk/credential-providers": "^3.549.0",
+    "@aws-sdk/shared-ini-file-loader": "^3.374.0",
+    "jsonpath": "^1.1.1",
+    "log4js": "^6.9.1"
+  },
+  "type": "module"
+}
