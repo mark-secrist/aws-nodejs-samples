@@ -7,6 +7,7 @@ import {
     ListTablesCommand,
     DynamoDBClient,
     waitUntilTableExists,
+    ExecuteStatementCommand,
 } from "@aws-sdk/client-dynamodb";
 import { fromIni } from '@aws-sdk/credential-providers';
 import { loadSharedConfigFiles } from '@aws-sdk/shared-ini-file-loader';
@@ -70,14 +71,12 @@ async function main() {
         console.log(`Note: ${JSON.stringify(note)}`);
     }
 
-    /* PartiQL not working yet 
+    // Perform a PartiQL query
     queryResults = await partiqlQuery(client, tableName, "student", 5)
     console.log("Results of PartiQL query");
     for (const note of queryResults) {
         console.log(`Note: ${JSON.stringify(note)}`);
     }
-    await testPartiQL(client);
-    */
 
     console.log("Deleting table");
     await deleteTable(client, tableName);
@@ -250,39 +249,35 @@ async function queryNotes(client, tableName, userId) {
     return response.Items;
 }
 
+/**
+ * Performs a query using the PartiQL style query.
+ * 
+ * Performs a query using the PartiQL style query. This query will return all
+ * matching items for the specified userId and noteId.
+ * 
+ * @param {DynamoDBClient} client Initialized client (including the designed region)
+ * @param {string} tableName Name of the table to query for items
+ * @param {string} userId Representing the partition key
+ * @param {number} noteId Representing the sort key
+ * @returns {object[]} A list (array) of matching items fetched from the table 
+ */
 async function partiqlQuery(client, tableName, userId, noteId) {
-    const partiqlQuery = `SELECT * FROM ${tableName} WHERE UserId = ? AND NoteId = ?`;
-    //Statement: `SELECT * FROM Notes WHERE UserId=? AND NoteId=?`,
     const params = {
-        Statement: "SELECT * FROM Notes WHERE UserId = 'student' AND NoteId = 5",
+        Statement: `SELECT * FROM ${tableName} WHERE UserId = ? AND NoteId = ?`,
+        Parameters: [{S: userId}, { N:noteId.toString()}]
     };
 
-    const command = new QueryCommand(params);
-    console.log(`Command: ${JSON.stringify(command)}`);
+    const command = new ExecuteStatementCommand(params);
     const response = await client.send(command);
     return response.Items;
 }
 
 /**
- * Test query.
+ * Deletes the specified table.
  * 
- * This is a simple query with hard coded values for the userId and noteId.
- * This is not a good practice.
- *  
- * @param {*} client 
+ * @param {DynamoDBClient} client Initialized client (including the designed region)
+ * @param {string} tableName Name of the table to delete
  */
-async function testPartiQL(client) {
-    const params = {
-        Statement: `SELECT * FROM "Notes" WHERE "UserId"='student' AND "NoteId"=4`
-    };
-
-    const command = new QueryCommand(params);
-    console.log(`Command: ${JSON.stringify(command)}`);
-    const response = await client.send(command);
-    console.log(`Response: ${JSON.stringify(response)}`);
-
-}
-
 async function deleteTable(client, tableName) {
     const params = {
         TableName: tableName
