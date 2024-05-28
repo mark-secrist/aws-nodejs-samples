@@ -21,12 +21,14 @@ import {
     DeleteObjectsCommand,
     PutObjectCommand,
     GetObjectCommand,
+    SelectObjectContentCommand
 } from "@aws-sdk/client-s3";
 import { loadSharedConfigFiles } from '@aws-sdk/shared-ini-file-loader';
 import { fromIni } from '@aws-sdk/credential-providers';
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import jp from 'jsonpath';
-import { readFileSync} from "fs";
+import { readFileSync } from "fs";
+import { TextDecoder } from "util";
 
 /**
  * Main entry point for the application.
@@ -58,12 +60,15 @@ async function main() {
     await listBucketContents(client, "home.dev2cloud.link");
     await createBucket(client, newBucket);
     await listBuckets(client);
-    
+
     const sourceFileName = "notes.csv";
-    const sourceContentType= "text/csv";
-    await uploadFile(client, newBucket, sourceFileName, sourceContentType,  { "myVal": "Upload Testing"} );
+    const sourceContentType = "text/csv";
+    await uploadFile(client, newBucket, sourceFileName, sourceContentType, { "myVal": "Upload Testing" });
     await listBucketContents(client, newBucket);
-    
+
+    // Query the uploaded file
+    await queryFile(client, newBucket, sourceFileName);
+
     // Generate a presigned URL good for an hour (60 seconds * 60 minutes)
     const url = await createPresignedUrl(client, newBucket, sourceFileName, 3600);
     console.log(`Presigned URL is: ${url}`);
@@ -145,7 +150,7 @@ async function createBucket(s3client, bucketName) {
     console.log(`Creating bucket: ${bucketName}`);
 
     try {
-        const { Location } =  await s3client.send(command);
+        const { Location } = await s3client.send(command);
         console.log(`Bucket created at: ${Location}`)
     } catch (err) {
         if (err.name === 'BucketAlreadyOwnedByYou' || err.name === 'BucketAlreadyExists') {
@@ -234,11 +239,79 @@ async function uploadFile(s3client, bucketName, fileName, contentType, metadata)
     });
 
     try {
-        const { Location } =  await s3client.send(command);
+        const { Location } = await s3client.send(command);
         console.log(`File uploaded at: ${Location}`)
     } catch (err) {
         console.error(err);
     }
+}
+
+/** 
+ * Query the provided file using S3 Query to find all items where Notes contains 'DynamoDB
+ * 
+ * Queries the provided file for a specific match on the Notes column. The input file for this
+ * example is expected to be in CSV format. However, JSON could be used as well.
+ *
+ * @param {S3Client} s3client The initialized S3 client reference
+ * @param {string} bucketName The name of the bucket to upload to
+ * @param {string} fileName The name of the source file (which will also be the key in S3)
+ */
+async function queryFile(s3client, bucketName, fileName) {
+    console.log(`Querying file: ${fileName}`);
+    // Write an S3 Query
+    const query = "select * from S3Object s where s.NOTES like '%DynamoDB%'"
+    // Construct the  S3 Query assuming CSV Input format and output JSON results
+    const command = new SelectObjectContentCommand({
+        Bucket: bucketName,
+        Key: fileName,
+        ExpressionType: "SQL",
+        Expression: query,
+        InputSerialization: {
+            CSV: {
+                FileHeaderInfo: "USE"
+            }
+        },
+        OutputSerialization: {
+            JSON: {}
+        }
+    });
+    
+    // Extract the data from the result. Since the response size is unknown, the S3 select
+    // statement streams the response as a series of messages that must be processed and decoded.
+    // This example also shows that there are several possible item types that could be fetched 
+    // on the stream. 
+    // 1. Records - The results of the query as records, which must be decoded into  a string
+    // 2. Stats - The stats for the query
+    // 3. End - signaling the end of the stream
+    // 4. Progress - The progress of the query
+    // 5. Continuation - The token to use to get the next set of results
+    // 6. Error - An error occurred
+    // See https://docs.aws.amazon.com/AmazonS3/latest/API/RESTSelectObjectAppendix.html for
+    // additional details
+    let data = "";
+    try {
+        const result = await s3client.send(command);
+        if (result.Payload) {
+
+            for await (let s of result.Payload) {
+                if (s.Records) {
+                    data = new TextDecoder().decode(s.Records.Payload);
+                } else if (s.Stats) {
+                    console.log(s.Stats.Details)
+                } else if (s.End) {
+                    console.log('End of stream')
+                }
+            }
+            console.log(data);
+        } else {
+            console.log('No result')
+        }
+
+    } catch (err) {
+        console.error(err);
+    }
+    console.log("\n");
+
 }
 
 /**
@@ -260,7 +333,7 @@ async function createPresignedUrl(s3client, bucketName, objectKey, duration) {
     });
 
     try {
-        return getSignedUrl(s3client, command, { expiresIn: duration }  );
+        return getSignedUrl(s3client, command, { expiresIn: duration });
     } catch (err) {
         console.error(err);
     }
